@@ -1,0 +1,33 @@
+{% extends "admin.html" %}
+
+{% block content %}
+{% if message %}
+<p class="text-center text-{{ message["type"] }}" role="alert">
+  <strong>{{ message["text"] }}</strong>
+</p>
+{% end %}
+
+<div class="col-xs-12">
+  <table class="table">
+    <caption>Device List</caption>
+    <thead>
+      <tr>
+	<th>#</th>
+	<th>Device Name</th>
+	<th>Address</th>
+	<th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i, device in enumerate(devices) %}
+      <tr>
+	<th scope="row">{{ i+1 }}</th>
+	<td>{{ device["name"] }}</td>
+	<td>{{ device["address"] }}</td>
+	<td>Not connected.</td>
+      </tr>
+      {% end %}
+    </tbody>
+  </table>
+</div>
+{% end %}
