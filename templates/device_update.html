@@ -14,21 +14,19 @@
   <div class="form-group">
     <label for="name" class="col-xs-3 control-label">Device Name</label>
     <div class="col-xs-6">
-      <input name="name" type="text" class="form-control" id="name" placeholder="Device Name" required autofocus value="{{ device  }}">
+      <input name="name" type="text" class="form-control" id="name" placeholder="Device Name" required autofocus value="{{ device["name"] }}">
     </div>
   </div>
   <div class="form-group">
-    <label for="password" class="col-xs-3 control-label">Password</label>
+    <label for="key" class="col-xs-3 control-label">Device Key</label>
     <div class="col-xs-6">
-      <input name="password" type="password" class="form-control" id="password" placeholder="Password">
+      <input name="key" type="text" class="form-control" id="key" placeholder="Device Key" required autofocus value="{{ device["key"] }}">
     </div>
   </div>
   <div class="form-group">
-    <div class="col-xs-offset-3 col-xs-3">
-      <button name="action" value="update" type="submit" class="btn btn-primary">Update {{ device }}</button>
-    </div>
-    <div class="col-xs-3">
-      <button name="action" value="delete" type="submit" class="btn btn-primary">Delete {{ device }}</button>
+    <div class="col-xs-offset-3 col-xs-6 btn-group" role="group">
+      <button name="action" value="update" type="submit" class="btn btn-primary">Update {{ device["name"] }}</button>
+      <button name="action" value="delete" type="submit" class="btn btn-danger">Delete {{ device["name"] }}</button>
     </div>
   </div>
 </form>

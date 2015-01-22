@@ -28,6 +28,7 @@ class Application(tornado.web.Application):
             (r"/logout/?", LogoutHandler),
             (r"/device/create/?", DeviceCreateHandler),
             (r"/device/(?P<slug>.+)/update/?", DeviceUpdateHandler),
+            (r"/device/socket/?", DeviceSocketHandler),
         ]
         settings = dict(
             cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
@@ -36,6 +37,7 @@ class Application(tornado.web.Application):
             login_url="/login/",
             xsrf_cookies=True,
             db=motor.MotorClient('localhost', 27017).trebol,
+            debug=True,
         )
         tornado.web.Application.__init__(self, handlers, **settings)
 
@@ -119,7 +121,7 @@ class DeviceCreateHandler(BaseHandler):
     def post(self):
         db = self.settings["db"]
         name = self.get_argument("name", "")
-        password = self.get_argument("password", "").encode()
+        key = self.get_argument("key", "")
         device = yield db.devices.find_one({"name": name})
 
         if device is not None:
@@ -130,11 +132,10 @@ class DeviceCreateHandler(BaseHandler):
                     "text": "Device already exists.",
                 }))
             self.redirect("/device/create/")
-        elif name and password:
-            password_hash = bcrypt.hashpw(password, bcrypt.gensalt(8))
+        elif name and key:
             new_device = yield db.devices.insert({
                 "name": name,
-                "hash": password_hash,
+                "key": key,
                 "address": None,
             })
             self.set_secure_cookie(
@@ -167,7 +168,7 @@ class DeviceUpdateHandler(BaseHandler):
 
         message = self.get_secure_cookie("message", "")
         self.render(
-            "device_update.html", device=device["name"], message=message)
+            "device_update.html", device=device, message=message)
 
     @tornado.gen.coroutine
     def post(self, slug):
@@ -195,7 +196,7 @@ class DeviceUpdateHandler(BaseHandler):
             redirect = "/"
         elif action == "update":
             new_name = self.get_argument("name", None)
-            new_password = self.get_argument("password", None)
+            new_key = self.get_argument("key", None)
 
             if new_name is None:
                 msg = {
@@ -203,11 +204,14 @@ class DeviceUpdateHandler(BaseHandler):
                     "text": "Please enter a device name.",
                 }
                 redirect = "/device/{}/update/".format(name)
+            elif key is None:
+                msg = {
+                    "type": "danger",
+                    "text": "Please enter a key for device.",
+                }
+                redirect = "/device/{}/update/".format(name)
             else:
-                update = {"name": new_name}
-                if new_password is not None:
-                    update["password"] = bcrypt.hashpw(
-                        new_password, bcrpyt.gensalt(8))
+                update = {"name": new_name, "key": key}
                 response = yield db.devices.update(
                     {"name": name}, {"$set": update})
 
@@ -226,6 +230,38 @@ class DeviceUpdateHandler(BaseHandler):
                     redirect = "/device/{}/update".format(name)
         self.set_secure_cookie("message", str(msg))
         self.redirect(redirect)
+
+
+class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
+    devices = set()
+
+    def check_origin(self, origin):
+        return True
+
+    @tornado.gen.coroutine
+    def open(self):
+        if not self.request.headers.has_key("X-Device-Name"):
+            self.write_message("missing-device-name")
+            self.close()
+
+        if not self.request.headers.has_key("X-Device-Key"):
+            self.write_message("missing-device-key")
+            self.close()
+
+        name = self.request.headers["X-Device-Name"]
+        key = self.request.headers["X-Device-Key"]
+        device = yield self.settings["db"].devices.find_one({"name": name})
+
+        if device is None:
+            self.write_message("device-does-not-exist")
+            self.close()
+
+        DeviceSocketHandler.devices.add(self)
+        logging.info("A device connected.")
+
+    def on_close(self):
+        DeviceSocketHandler.devices.remove(self)
+        logging.info("A device disconnected.")
 
 
 def main():
