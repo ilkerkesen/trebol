@@ -12,8 +12,6 @@ import motor
 import ast
 import bcrypt
 import os.path
-import uuid
-import time
 
 from tornado.options import define, options
 
@@ -133,7 +131,7 @@ class DeviceCreateHandler(BaseHandler):
                 }))
             self.redirect("/device/create/")
         elif name and key:
-            new_device = yield db.devices.insert({
+            yield db.devices.insert({
                 "name": name,
                 "key": key,
                 "address": None,
@@ -204,14 +202,14 @@ class DeviceUpdateHandler(BaseHandler):
                     "text": "Please enter a device name.",
                 }
                 redirect = "/device/{}/update/".format(name)
-            elif key is None:
+            elif new_key is None:
                 msg = {
                     "type": "danger",
                     "text": "Please enter a key for device.",
                 }
                 redirect = "/device/{}/update/".format(name)
             else:
-                update = {"name": new_name, "key": key}
+                update = {"name": new_name, "key": new_key}
                 response = yield db.devices.update(
                     {"name": name}, {"$set": update})
 
@@ -250,7 +248,8 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
 
         name = self.request.headers["X-Device-Name"]
         key = self.request.headers["X-Device-Key"]
-        device = yield self.settings["db"].devices.find_one({"name": name})
+        device = yield self.settings["db"].devices.find_one(
+            {"name": name, "key": key})
 
         if device is None:
             self.write_message("device-does-not-exist")
