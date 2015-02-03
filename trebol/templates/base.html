@@ -11,10 +11,12 @@
   </head>
 
   <body>
+    {% include "header.html" %}
     <div class="container">
-      {% block header %}{% end %}
+      <div class="page-header">
+        <h1>{% block page-header %}{% end %} <small>{% block page-header-subtext %}{% end %}</small></h1>
+      </div>
       {% block content %}{% end %}
-      {% block footer %}{% end %}
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script src="{{ static_url("outsource/js/bootstrap.min.js") }}"></script>

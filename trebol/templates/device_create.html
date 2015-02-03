@@ -1,7 +1,10 @@
-{% extends "admin.html" %}
+{% extends "base.html" %}
 
+{% block page-header %}New Device{% end %}
+{% block page-header-subtext %}Create new device{% end %}
+
+{% block title %}Create Device - {% end %}
 {% block content %}
-
 <form class="form-horizontal" action="/device/create/" method="post">
   {% module xsrf_form_html() %}
 

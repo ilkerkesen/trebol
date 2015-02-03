@@ -1,5 +1,41 @@
 <div class="header">
-  <nav>
+  <nav class="navbar navbar-default">
+    <div class="container">
+      <!-- Brand and toggle get grouped for better mobile display -->
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">Trebol</a>
+      </div>
+
+      <!-- Collect the nav links, forms, and other content for toggling -->
+      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        <ul class="nav navbar-nav">
+          <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Devices <span class="caret"></span></a>
+            <ul class="dropdown-menu" role="menu">
+              <li><a href="/device/create/"><span class="glyphicon glyphicon-plus"></span> New Device</a></li>
+              <li><a href="/"><span class="glyphicon glyphicon-th-list"></span> Device List</a></li>
+            </ul>
+          </li>
+          <li><a href="#">Statistics</a></li>
+          <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Users <span class="caret"></span></a>
+            <ul class="dropdown-menu" role="menu">
+              <li><a href="/users/create/"><span class="glyphicon glyphicon-plus"></span> New User</a></li>
+              <li><a href="/users/list/"><span class="glyphicon glyphicon-th-list"></span> User List</a></li>
+            </ul>
+          </li>
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li><p class="navbar-text">Signed as <a href="#">{{ current_user }}</a></p></li>
+          <li><a href="/logout/">Logout</a></li>
+        </ul>
+      </div>
+    </div>
   </nav>
-  <h3 class="text-muted">Trebol</h3>
 </div>

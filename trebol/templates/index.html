@@ -1,4 +1,7 @@
-{% extends "admin.html" %}
+{% extends "base.html" %}
+
+{% block page-header %}Device List{% end %}
+{% block page-header-subtext %}See devices with status information{% end %}
 
 {% block content %}
 {% if message %}
@@ -9,22 +12,21 @@
 
 <div class="col-xs-12">
   <table class="table">
-    <caption>Device List</caption>
     <thead>
       <tr>
-	<th>#</th>
-	<th>Device Name</th>
-	<th>Address</th>
-	<th>Status</th>
+        <th>#</th>
+        <th>Device Name</th>
+        <th>Address</th>
+        <th>Status</th>
       </tr>
     </thead>
     <tbody>
       {% for i, device in enumerate(devices) %}
       <tr>
-	<th scope="row">{{ i+1 }}</th>
-	<td>{{ device["name"] }}</td>
-	<td>{{ device["address"] }}</td>
-	<td>Not connected.</td>
+        <th scope="row">{{ i+1 }}</th>
+        <td>{{ device["name"] }}</td>
+        <td>{{ device["address"] }}</td>
+        <td>Not connected.</td>
       </tr>
       {% end %}
     </tbody>

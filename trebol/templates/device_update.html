@@ -1,7 +1,11 @@
-{% extends "admin.html" %}
+{% extends "base.html" %}
 
+{% block page-header %}Edit Device{% end %}
+{% block page-header-subtext %}Make changes on {{ device["name"] }}{% end %}
+
+{% block title %}Edit Device - {% end %}
 {% block content %}
-<form class="form-horizontal" action="/device/{{ device }}/update/" method="post">
+<form class="form-horizontal" action="/device/{{ device["name"] }}/update/" method="post">
   {% module xsrf_form_html() %}
 
   {% if message %}
