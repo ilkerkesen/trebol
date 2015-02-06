@@ -13,6 +13,7 @@
 
       <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
         <ul class="nav navbar-nav">
+          {% if current_user["group"] == "admin" %}
           <li class="dropdown">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Devices <span class="caret"></span></a>
             <ul class="dropdown-menu" role="menu">
@@ -27,9 +28,12 @@
               <li><a href="/user/list/"><span class="glyphicon glyphicon-th-list"></span> User List</a></li>
             </ul>
           </li>
+          {% elif current_user["group"] == "user" %}
+          <li><a href="/">Devices</a></li>
+          {% end %}
         </ul>
         <ul class="nav navbar-nav navbar-right">
-          <li><p class="navbar-text">Signed as <span class="text-info">{{ current_user }}</span></p></li>
+          <li><p class="navbar-text">Signed as <span class="text-info">{{ current_user["email"] }}</span></p></li>
           <li><a href="/logout/">Logout</a></li>
         </ul>
       </div>

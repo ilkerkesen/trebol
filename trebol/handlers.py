@@ -11,6 +11,7 @@ import bcrypt
 
 from interface import *
 from choices import *
+from decorators import *
 
 __all__ = [
     "MainHandler", "LoginHandler", "LogoutHandler",
@@ -20,6 +21,12 @@ __all__ = [
 
 
 class BaseHandler(tornado.web.RequestHandler):
+    def set_current_user(self, user):
+        if user:
+            self.set_secure_cookie("user", tornado.escape.json_encode(user))
+        else:
+            self.clear_cookie("user")
+
     def get_current_user(self):
         user_json = self.get_secure_cookie("user")
         if user_json:
@@ -69,17 +76,12 @@ class LoginHandler(BaseHandler):
 
         if user and user['hash'] and \
            bcrypt.hashpw(password, user["hash"].encode()) == user["hash"]:
-            self.set_current_user(email)
+            user.pop("hash")
+            self.set_current_user(user)
             self.redirect(self.get_argument("next", u"/"))
         else:
             self.set_message("danger", "Authorization Failure.")
             self.redirect(self.settings["login_url"])
-
-    def set_current_user(self, user):
-        if user:
-            self.set_secure_cookie("user", tornado.escape.json_encode(user))
-        else:
-            self.clear_cookie("user")
 
 
 class LogoutHandler(BaseHandler):
@@ -90,6 +92,7 @@ class LogoutHandler(BaseHandler):
 
 class DeviceCreateHandler(BaseHandler):
     @tornado.web.authenticated
+    @is_admin
     def get(self):
         self.render("device_create.html", message=self.get_message())
 
@@ -121,6 +124,7 @@ class DeviceCreateHandler(BaseHandler):
 
 class DeviceUpdateHandler(BaseHandler):
     @tornado.web.authenticated
+    @is_admin
     @tornado.gen.coroutine
     def get(self, slug):
         db = self.settings["db"]
@@ -185,6 +189,7 @@ class DeviceUpdateHandler(BaseHandler):
 
 class UserCreateHandler(BaseHandler):
     @tornado.web.authenticated
+    @is_admin
     def get(self):
         self.render(
             "user_create.html", message=self.get_message(), groups=USER_GROUPS)
@@ -214,6 +219,7 @@ class UserCreateHandler(BaseHandler):
 
 class UserListHandler(BaseHandler):
     @tornado.web.authenticated
+    @is_admin
     @tornado.gen.coroutine
     def get(self):
         cursor = self.settings["db"].users.find().sort('_id', 1)
@@ -224,9 +230,10 @@ class UserListHandler(BaseHandler):
 
 class UserUpdateHandler(BaseHandler):
     @tornado.web.authenticated
+    @is_admin
     @tornado.gen.coroutine
-    def get(self, id):
-        user = yield self.settings["db"].users.find_one({"_id": int(id)})
+    def get(self, uid):
+        user = yield self.settings["db"].users.find_one({"_id": int(uid)})
         if user is None:
             raise tornado.web.HTTPError(404)
 
@@ -234,17 +241,17 @@ class UserUpdateHandler(BaseHandler):
                     groups=USER_GROUPS)
 
     @tornado.gen.coroutine
-    def post(self, id):
+    def post(self, uid):
         db = self.settings["db"]
-        id = int(id)
-        user = yield db.users.find_one({"_id": id})
+        uid = int(uid)
+        user = yield db.users.find_one({"_id": uid})
         action = self.get_argument("action", "")
 
         if action not in ("update", "delete") or user is None:
             raise tornado.web.HTTPError(404)
 
         if action == "delete":
-            response = yield db.users.remove({"_id": id})
+            response = yield db.users.remove({"_id": uid})
             if response["err"] is None:
                 kind = "success"
                 text = "User {} deleted.".format(user["email"])
@@ -258,22 +265,27 @@ class UserUpdateHandler(BaseHandler):
             new_group = self.get_argument("group", None)
             new_pass = self.get_argument("password", None)
 
-            if new_email is None or new_group not in USER_GROUPS:
+            if new_email == "" or new_group not in USER_GROUPS:
                 kind = "danger"
                 text = "Please enter a valid user."
                 redirect = "/user/{}/update/".format(name)
             else:
                 update = {"email": new_email, "group": new_group}
-                if new_pass is not None:
+                if new_pass != "":
                     update.update({"hash": bcrypt.hashpw(
                         new_pass.encode(), bcrypt.gensalt(8))})
                 response = yield db.users.update(
-                    {"_id": id}, {"$set": update})
-                redirect = "/user/{}/update".format(str(id))
+                    {"_id": uid}, {"$set": update})
+                redirect = "/user/{}/update".format(str(uid))
 
                 if response["err"] is None:
                     kind = "success"
                     text = "User updated successfully."
+
+                    if user["email"] == self.get_current_user()["email"]:
+                        if update.has_key("hash"):
+                            update.pop("hash")
+                        self.set_current_user(update)
                 else:
                     kind = "danger"
                     text = "User update failure: {}".format(response["err"])
