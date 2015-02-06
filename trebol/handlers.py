@@ -9,9 +9,13 @@ import logging
 import ast
 import bcrypt
 
+from interface import *
+
 __all__ = [
     "MainHandler", "LoginHandler", "LogoutHandler",
-    "DeviceCreateHandler", "DeviceUpdateHandler", "DeviceSocketHandler"]
+    "DeviceCreateHandler", "DeviceUpdateHandler", "DeviceSocketHandler",
+    "UserCreateHandler", "UserListHandler", "UserUpdateHandler",
+]
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -22,10 +26,9 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
             return None
 
-    def get_flash(self):
-        flash = self.get_secure_cookie("flash")
-        self.clear_cookie("flash")
-        return flash
+    def set_message(self, kind, text):
+        msg = {"type": kind, "text": text}
+        self.set_secure_cookie(str(msg))
 
     def get_message(self):
         message = self.get_secure_cookie("message")
@@ -54,7 +57,7 @@ class MainHandler(BaseHandler):
 
 class LoginHandler(BaseHandler):
     def get(self):
-        self.render("login.html", notification=self.get_flash())
+        self.render("login.html", message=self.get_message())
 
     @tornado.gen.coroutine
     def post(self):
@@ -68,7 +71,7 @@ class LoginHandler(BaseHandler):
             self.set_current_user(email)
             self.redirect(self.get_argument("next", u"/"))
         else:
-            self.set_secure_cookie("flash", "Authorization Failure.")
+            self.set_message("danger", "Authorization Failure.")
             self.redirect(self.settings["login_url"])
 
     def set_current_user(self, user):
@@ -97,34 +100,22 @@ class DeviceCreateHandler(BaseHandler):
         device = yield db.devices.find_one({"name": name})
 
         if device is not None:
-            self.set_secure_cookie(
-                "message", 
-                str({
-                    "type": "danger",
-                    "text": "Device already exists.",
-                }))
-            self.redirect("/device/create/")
+            kind = "danger"
+            text = "Device already exists."
         elif name and key:
             yield db.devices.insert({
                 "name": name,
                 "key": key,
                 "address": None,
             })
-            self.set_secure_cookie(
-                "message",
-                str({
-                    "type": "success",
-                    "text": "Device {} added succesfully.".format(name),
-                }))
-            self.redirect("/device/create/")
+            kind = "success"
+            text = "Device {} added succesfully".format(name)
         else:
-            self.set_secure_cookie(
-                "message",
-                str({
-                    "type": "danger",
-                    "text": "Please enter a valid device.",
-                }))
-            self.redirect('/device/create/')
+            kind = "danger"
+            text = "Please enter a valid device."
+
+        self.set_message(kind, text)
+        self.redirect('/device/create/')
 
 
 class DeviceUpdateHandler(BaseHandler):
@@ -155,32 +146,24 @@ class DeviceUpdateHandler(BaseHandler):
         if action == "delete":
             response = yield db.devices.remove({"name": name})
             if response["err"] is None:
-                msg = {
-                    "type": "success",
-                    "text": "Device {} deleted.".format(name),
-                }
+                kind = "success"
+                text = "Device {} deleted.".format(name)
             else:
-                msg = {
-                    "type": "danger",
-                    "text": "Device {} could not be deleted: {}".format(
-                        name, response["err"])
-                }
+                kind = "danger"
+                text = "Device {} could not be deleted: {}".format(
+                    name, response["err"])
             redirect = "/"
         elif action == "update":
             new_name = self.get_argument("name", None)
             new_key = self.get_argument("key", None)
 
             if new_name is None:
-                msg = {
-                    "type": "danger",
-                    "text": "Please enter a device name.",
-                }
+                kind = "danger"
+                text = "Please enter a device name."
                 redirect = "/device/{}/update/".format(name)
             elif new_key is None:
-                msg = {
-                    "type": "danger",
-                    "text": "Please enter a key for device.",
-                }
+                kind = "danger"
+                text = "Please enter a key for device."
                 redirect = "/device/{}/update/".format(name)
             else:
                 update = {"name": new_name, "key": new_key}
@@ -188,19 +171,109 @@ class DeviceUpdateHandler(BaseHandler):
                     {"name": name}, {"$set": update})
 
                 if response["err"] is None:
-                    msg = {
-                        "type": "success",
-                        "text": "Device updated successfully."
-                    }
-                    redirect = "/device/{}/update".format(new_name)
+                    kind = "success"
+                    text = "Device updated succesfully."
                 else:
-                    msg = {
-                        "type": "alert",
-                        "text": "Device update failure: {}".format(
-                            response["err"])
-                    }
-                    redirect = "/device/{}/update".format(name)
-        self.set_secure_cookie("message", str(msg))
+                    kind = "alert"
+                    text = "Device update failure: {}".format(response["err"])
+                redirect = "/device/{}/update".format(name)
+
+        self.set_message(kind, text)
+        self.redirect(redirect)
+
+
+class UserCreateHandler(BaseHandler):
+    @tornado.web.authenticated
+    def get(self):
+        self.render("user_create.html", message=self.get_message())
+
+    @tornado.gen.coroutine
+    def post(self):
+        db = self.settings["db"]
+        email = self.get_argument("email", "")
+        password = self.get_argument("password", "")
+        user = yield db.users.find_one({"email": email})
+
+        if user is not None:
+            kind = "danger"
+            text = "User already exists."
+        elif email and password:
+            yield create_new_user(db, email, password)
+            kind = "success"
+            text = "User {} added succesfully.".format(email)
+        else:
+            kind = "danger"
+            text = "Please enter  valid user."
+
+        self.set_message(kind, text)
+        self.redirect("/user/create/")
+
+
+class UserListHandler(BaseHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def get(self):
+        cursor = self.settings["db"].users.find().sort('_id', 1)
+        count = yield cursor.count()
+        users = yield cursor.to_list(count)
+        self.render("user_list.html", users=users, message=self.get_message())
+
+
+class UserUpdateHandler(BaseHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def get(self, id):
+        user = yield self.settings["db"].users.find_one({"_id": int(id)})
+        if user is None:
+            raise tornado.web.HTTPError(404)
+
+        self.render("user_update.html", user=user, message=self.get_message())
+
+    @tornado.gen.coroutine
+    def post(self, id):
+        db = self.settings["db"]
+        id = int(id)
+        user = yield db.users.find_one({"_id": id})
+        action = self.get_argument("action", "")
+
+        if action not in ("update", "delete") or user is None:
+            raise tornado.web.HTTPError(404)
+
+        if action == "delete":
+            response = yield db.users.remove({"_id": id})
+            if response["err"] is None:
+                kind = "success"
+                text = "User {} deleted.".format(user["email"])
+            else:
+                kind = "danger"
+                text = "User {} could not be deleted: {}".format(
+                    user["email"], response["err"])
+            redirect = "/"
+        elif action == "update":
+            new_email = self.get_argument("email", None)
+            new_pass = self.get_argument("password", None)
+
+            if new_email is None:
+                kind = "danger"
+                text = "Please enter an email address."
+                redirect = "/user/{}/update/".format(name)
+            else:
+                update = {"email": new_email}
+                if new_pass is not None:
+                    update.update({"hash": bcrypt.hashpw(
+                        new_pass.encode(), bcrypt.gensalt(8))})
+                response = yield db.users.update(
+                    {"_id": id}, {"$set": update})
+                redirect = "/user/{}/update".format(str(id))
+
+                if response["err"] is None:
+                    kind = "success"
+                    text = "User updated successfully."
+                else:
+                    kind = "danger"
+                    text = "User update failure: {}".format(response["err"])
+
+        self.set_message(kind, text)
         self.redirect(redirect)
 
 
@@ -215,10 +288,12 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
         if not self.request.headers.has_key("X-Device-Name"):
             self.write_message("missing-device-name")
             self.close()
+            self.finish()
 
         if not self.request.headers.has_key("X-Device-Key"):
             self.write_message("missing-device-key")
             self.close()
+            self.finish()
 
         name = self.request.headers["X-Device-Name"]
         key = self.request.headers["X-Device-Key"]

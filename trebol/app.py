@@ -22,6 +22,9 @@ class Application(tornado.web.Application):
             (r"/device/create/?", DeviceCreateHandler),
             (r"/device/(?P<slug>.+)/update/?", DeviceUpdateHandler),
             (r"/device/socket/?", DeviceSocketHandler),
+            (r"/user/create/?", UserCreateHandler),
+            (r"/user/list/?", UserListHandler),
+            (r"/user/(?P<id>\d+)/update/?", UserUpdateHandler),
         ]
         settings = dict(
             cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",

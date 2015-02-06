@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block page-header %}Edit User{% end %}
+{% block page-header-subtext %}Make changes on user &lt;{{ user["email"] }}&gt;{% end %}
+
+{% block title %}Edit User - {% end %}
+{% block content %}
+<form class="form-horizontal" action="/user/{{ user["_id"] }}/update/" method="post">
+  {% module xsrf_form_html() %}
+
+  {% if message %}
+  <div class="form-group">
+    <p class="text-{{ message["type"] }} col-xs-offset-3 col-xs-6" role="alert">
+      <strong>{{ message["text"] }}</strong>
+    </p>
+  </div>
+  {% end %}
+  <div class="form-group">
+    <label for="email" class="col-xs-3 control-label">Email</label>
+    <div class="col-xs-6">
+      <input name="email" type="email" class="form-control" id="email" placeholder="E-mail Address" required autofocus value="{{ user["email"] }}">
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="password" class="col-xs-3 control-label">Password</label>
+    <div class="col-xs-6">
+      <input name="password" type="password" class="form-control" id="password" placeholder="Password" required autofocus>
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-xs-offset-3 col-xs-6 btn-group" role="group">
+      <button name="action" value="update" type="submit" class="btn btn-primary">Update</button>
+      <button name="action" value="delete" type="submit" class="btn btn-danger">Delete</button>
+    </div>
+  </div>
+</form>
+{% end %}

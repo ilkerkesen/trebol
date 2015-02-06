@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block page-header %}User List{% end %}
+{% block page-header-subtext %}See all users{% end %}
+
+{% block content %}
+{% if message %}
+<p class="text-center text-{{ message["type"] }}" role="alert">
+  <strong>{{ message["text"] }}</strong>
+</p>
+{% end %}
+
+<div class="col-xs-12">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>E-Mail Address</th>
+        <th>Group</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user["_id"] }}</td>
+        <td><a href="/user/{{ user["_id"] }}/update/">{{ user["email"] }}</a></td>
+        <td>user</td>
+      </tr>
+      {% end %}
+    </tbody>
+  </table>
+</div>
+{% end %}
