@@ -19,7 +19,8 @@ def get_next_id(db, collection):
 
 
 @tornado.gen.coroutine
-def create_new_user(db, email, password):
+def create_new_user(db, email, password, group):
     password = bcrypt.hashpw(password.encode(), bcrypt.gensalt(8))
     id = yield get_next_id(db, "user")
-    yield db.users.insert({"_id": id, "email": email, "hash": password})
+    yield db.users.insert({
+        "_id": id, "email": email, "hash": password, "group": group})

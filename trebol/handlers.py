@@ -10,6 +10,7 @@ import ast
 import bcrypt
 
 from interface import *
+from choices import *
 
 __all__ = [
     "MainHandler", "LoginHandler", "LogoutHandler",
@@ -28,7 +29,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def set_message(self, kind, text):
         msg = {"type": kind, "text": text}
-        self.set_secure_cookie(str(msg))
+        self.set_secure_cookie("message", str(msg))
 
     def get_message(self):
         message = self.get_secure_cookie("message")
@@ -185,25 +186,27 @@ class DeviceUpdateHandler(BaseHandler):
 class UserCreateHandler(BaseHandler):
     @tornado.web.authenticated
     def get(self):
-        self.render("user_create.html", message=self.get_message())
+        self.render(
+            "user_create.html", message=self.get_message(), groups=USER_GROUPS)
 
     @tornado.gen.coroutine
     def post(self):
         db = self.settings["db"]
         email = self.get_argument("email", "")
         password = self.get_argument("password", "")
+        group = self.get_argument("group", "")
         user = yield db.users.find_one({"email": email})
 
         if user is not None:
             kind = "danger"
             text = "User already exists."
-        elif email and password:
-            yield create_new_user(db, email, password)
+        elif email and password and group in USER_GROUPS:
+            yield create_new_user(db, email, password, group)
             kind = "success"
             text = "User {} added succesfully.".format(email)
         else:
             kind = "danger"
-            text = "Please enter  valid user."
+            text = "Please enter a valid user."
 
         self.set_message(kind, text)
         self.redirect("/user/create/")
@@ -227,7 +230,8 @@ class UserUpdateHandler(BaseHandler):
         if user is None:
             raise tornado.web.HTTPError(404)
 
-        self.render("user_update.html", user=user, message=self.get_message())
+        self.render("user_update.html", user=user, message=self.get_message(),
+                    groups=USER_GROUPS)
 
     @tornado.gen.coroutine
     def post(self, id):
@@ -251,14 +255,15 @@ class UserUpdateHandler(BaseHandler):
             redirect = "/"
         elif action == "update":
             new_email = self.get_argument("email", None)
+            new_group = self.get_argument("group", None)
             new_pass = self.get_argument("password", None)
 
-            if new_email is None:
+            if new_email is None or new_group not in USER_GROUPS:
                 kind = "danger"
-                text = "Please enter an email address."
+                text = "Please enter a valid user."
                 redirect = "/user/{}/update/".format(name)
             else:
-                update = {"email": new_email}
+                update = {"email": new_email, "group": new_group}
                 if new_pass is not None:
                     update.update({"hash": bcrypt.hashpw(
                         new_pass.encode(), bcrypt.gensalt(8))})
