@@ -14,9 +14,9 @@ from choices import *
 from decorators import *
 
 __all__ = [
-    "MainHandler", "LoginHandler", "LogoutHandler",
-    "DeviceCreateHandler", "DeviceUpdateHandler", "DeviceSocketHandler",
-    "UserCreateHandler", "UserListHandler", "UserUpdateHandler",
+    "MainHandler", "LoginHandler", "LogoutHandler", "DeviceCreateHandler",
+    "DeviceUpdateHandler", "DeviceSocketHandler", "UserCreateHandler",
+    "UserListHandler", "UserUpdateHandler", "TrebolSocketHandler",
 ]
 
 
@@ -297,9 +297,6 @@ class UserUpdateHandler(BaseHandler):
 class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
     devices = set()
 
-    def check_origin(self, origin):
-        return True
-
     @tornado.gen.coroutine
     def open(self):
         if not self.request.headers.has_key("X-Device-Name"):
@@ -314,8 +311,10 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
 
         name = self.request.headers["X-Device-Name"]
         key = self.request.headers["X-Device-Key"]
-        device = yield self.settings["db"].devices.find_one(
-            {"name": name, "key": key})
+        device = yield self.settings["db"].devices.find_and_modify(
+            {"name": name, "key": key},
+            {"$set": {"address": self.request.remote_ip}},
+            new=True)
 
         if device is None:
             self.write_message("device-does-not-exist")
@@ -323,7 +322,35 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
 
         DeviceSocketHandler.devices.add(self)
         logging.info("A device connected.")
+        TrebolSocketHandler.device_action(self, "connect")
 
     def on_close(self):
         DeviceSocketHandler.devices.remove(self)
         logging.info("A device disconnected.")
+        TrebolSocketHandler.device_action(self, "disconnect")
+
+
+class TrebolSocketHandler(tornado.websocket.WebSocketHandler):
+    clients = set()
+
+    def open(self):
+        TrebolSocketHandler.clients.add(self)
+        logging.info("A Trebol client connected.")
+
+        for device in DeviceSocketHandler.devices:
+            TrebolSocketHandler.device_action(device, "connect")
+
+    @classmethod
+    def device_action(cls, device, action):
+        msg = {
+            "action": action,
+            "device": device.request.headers["X-Device-Name"],
+            "address": device.request.remote_ip,
+        }
+
+        for client in cls.clients:
+            client.write_message(msg)
+
+    def on_close(self):
+        TrebolSocketHandler.clients.remove(self)
+        logging.info("A Trebol client disconnected.")

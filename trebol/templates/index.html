@@ -22,14 +22,18 @@
     </thead>
     <tbody>
       {% for i, device in enumerate(devices) %}
-      <tr>
+      <tr data-device="{{ device["name"] }}">
         <th scope="row">{{ i+1 }}</th>
         <td><a href="/device/{{ device["name"] }}/update/">{{ device["name"] }}</a></td>
         <td>{{ device["address"] }}</td>
-        <td>Not connected.</td>
+        <td><p class="text-danger">Not connected.</p></td>
       </tr>
       {% end %}
     </tbody>
   </table>
 </div>
+{% end %}
+
+{% block extrascripts %}
+<script src="{{ static_url("project/js/trebol.js") }}"></script>
 {% end %}

@@ -25,6 +25,7 @@ class Application(tornado.web.Application):
             (r"/user/create/?", UserCreateHandler),
             (r"/user/list/?", UserListHandler),
             (r"/user/(?P<uid>\d+)/update/?", UserUpdateHandler),
+            (r"/socket/trebol/?", TrebolSocketHandler),
         ]
         settings = dict(
             cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
