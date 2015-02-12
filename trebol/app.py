@@ -16,15 +16,16 @@ define("port", default=3000, help="run on the given port", type=int)
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
-            (r"/", MainHandler),
+            (r"/", tornado.web.RedirectHandler, {"url": "/device/list/"}),
             (r"/login/?", LoginHandler),
             (r"/logout/?", LogoutHandler),
+            (r"/device/list/?", DeviceListHandler),
             (r"/device/create/?", DeviceCreateHandler),
             (r"/device/(?P<slug>.+)/update/?", DeviceUpdateHandler),
-            (r"/device/socket/?", DeviceSocketHandler),
             (r"/user/create/?", UserCreateHandler),
             (r"/user/list/?", UserListHandler),
             (r"/user/(?P<uid>\d+)/update/?", UserUpdateHandler),
+            (r"/socket/device/?", DeviceSocketHandler),
             (r"/socket/trebol/?", TrebolSocketHandler),
         ]
         settings = dict(

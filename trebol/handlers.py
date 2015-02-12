@@ -14,9 +14,10 @@ from choices import *
 from decorators import *
 
 __all__ = [
-    "MainHandler", "LoginHandler", "LogoutHandler", "DeviceCreateHandler",
-    "DeviceUpdateHandler", "DeviceSocketHandler", "UserCreateHandler",
-    "UserListHandler", "UserUpdateHandler", "TrebolSocketHandler",
+    "LoginHandler", "LogoutHandler",
+    "DeviceListHandler", "DeviceCreateHandler", "DeviceUpdateHandler",
+    "UserListHandler", "UserCreateHandler", "UserUpdateHandler",
+    "DeviceSocketHandler", "TrebolSocketHandler",
 ]
 
 
@@ -46,23 +47,6 @@ class BaseHandler(tornado.web.RequestHandler):
         return message
 
 
-class MainHandler(BaseHandler):
-    @tornado.web.authenticated
-    @tornado.gen.coroutine
-    def get(self):
-        db = self.settings["db"]
-        cursor = db.devices.find().sort('name', 1)
-        count = yield cursor.count()
-        devices = yield cursor.to_list(count)
-
-        self.render(
-            "index.html",
-            username=self.get_current_user(),
-            devices=devices,
-            message=self.get_message()
-        )
-
-
 class LoginHandler(BaseHandler):
     def get(self):
         self.render("login.html", message=self.get_message())
@@ -78,7 +62,7 @@ class LoginHandler(BaseHandler):
            bcrypt.hashpw(password, user["hash"].encode()) == user["hash"]:
             user.pop("hash")
             self.set_current_user(user)
-            self.redirect(self.get_argument("next", u"/"))
+            self.redirect(self.get_argument("next", u"/device/list/"))
         else:
             self.set_message("danger", "Authorization Failure.")
             self.redirect(self.settings["login_url"])
@@ -88,6 +72,23 @@ class LogoutHandler(BaseHandler):
     def get(self):
         self.clear_cookie("user")
         self.redirect(self.get_argument("next", "/"))
+
+
+class DeviceListHandler(BaseHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def get(self):
+        db = self.settings["db"]
+        cursor = db.devices.find().sort('name', 1)
+        count = yield cursor.count()
+        devices = yield cursor.to_list(count)
+
+        self.render(
+            "device_list.html",
+            username=self.get_current_user(),
+            devices=devices,
+            message=self.get_message()
+        )
 
 
 class DeviceCreateHandler(BaseHandler):
@@ -157,7 +158,7 @@ class DeviceUpdateHandler(BaseHandler):
                 kind = "danger"
                 text = "Device {} could not be deleted: {}".format(
                     name, response["err"])
-            redirect = "/"
+            redirect = "/device/list/"
         elif action == "update":
             new_name = self.get_argument("name", None)
             new_key = self.get_argument("key", None)
@@ -181,10 +182,21 @@ class DeviceUpdateHandler(BaseHandler):
                 else:
                     kind = "alert"
                     text = "Device update failure: {}".format(response["err"])
-                redirect = "/device/{}/update".format(name)
+                redirect = "/device/{}/update/".format(name)
 
         self.set_message(kind, text)
         self.redirect(redirect)
+
+
+class UserListHandler(BaseHandler):
+    @tornado.web.authenticated
+    @is_admin
+    @tornado.gen.coroutine
+    def get(self):
+        cursor = self.settings["db"].users.find().sort('_id', 1)
+        count = yield cursor.count()
+        users = yield cursor.to_list(count)
+        self.render("user_list.html", users=users, message=self.get_message())
 
 
 class UserCreateHandler(BaseHandler):
@@ -215,17 +227,6 @@ class UserCreateHandler(BaseHandler):
 
         self.set_message(kind, text)
         self.redirect("/user/create/")
-
-
-class UserListHandler(BaseHandler):
-    @tornado.web.authenticated
-    @is_admin
-    @tornado.gen.coroutine
-    def get(self):
-        cursor = self.settings["db"].users.find().sort('_id', 1)
-        count = yield cursor.count()
-        users = yield cursor.to_list(count)
-        self.render("user_list.html", users=users, message=self.get_message())
 
 
 class UserUpdateHandler(BaseHandler):
@@ -259,7 +260,7 @@ class UserUpdateHandler(BaseHandler):
                 kind = "danger"
                 text = "User {} could not be deleted: {}".format(
                     user["email"], response["err"])
-            redirect = "/"
+            redirect = "/device/list/"
         elif action == "update":
             new_email = self.get_argument("email", None)
             new_group = self.get_argument("group", None)
@@ -308,6 +309,9 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
             self.write_message("missing-device-key")
             self.close()
             self.finish()
+
+        if self.request.headers.has_key("X-Real-IP"):
+            self.request.remote_ip = self.request.headers.get("X-Real-IP")
 
         name = self.request.headers["X-Device-Name"]
         key = self.request.headers["X-Device-Key"]
