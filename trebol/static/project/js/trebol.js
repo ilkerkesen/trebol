@@ -15,6 +15,7 @@ var updater = {
         updater.socket.onmessage = function(event) {
             updater.updateStatus(JSON.parse(event.data));
         };
+        updater.socket.onclose = updater.start;
     },
 
     updateStatus: function(msg) {
