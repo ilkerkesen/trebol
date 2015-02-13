@@ -310,8 +310,8 @@ class DeviceSocketHandler(tornado.websocket.WebSocketHandler):
             self.close()
             self.finish()
 
-        if self.request.headers.has_key("X-Real-IP"):
-            self.request.remote_ip = self.request.headers.get("X-Real-IP")
+        if self.request.headers.has_key("X-Real-Ip"):
+            self.request.remote_ip = self.request.headers.get("X-Real-Ip")
 
         name = self.request.headers["X-Device-Name"]
         key = self.request.headers["X-Device-Key"]
